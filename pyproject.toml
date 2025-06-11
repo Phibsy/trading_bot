@@ -1,0 +1,182 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alpaca-trading-bot"
+version = "1.0.0"
+description = "A professional modular trading bot for Alpaca Markets with Groq AI integration"
+authors = [
+    {name = "Trading Bot Developer", email = "developer@example.com"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+keywords = ["trading", "alpaca", "groq", "ai", "algorithmic-trading", "financial", "stocks", "etf"]
+dependencies = [
+    "alpaca-trade-api>=3.1.1",
+    "groq>=0.4.1",
+    "pandas>=2.1.4",
+    "numpy>=1.25.2",
+    "ta>=0.10.2",
+    "python-dotenv>=1.0.0",
+    "aiohttp>=3.9.1",
+    "sqlalchemy>=2.0.23",
+    "numba>=0.58.1",
+    "pydantic>=2.5.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1",
+    "pytest-cov>=4.1.0",
+    "black>=23.12.1",
+    "flake8>=6.1.0",
+    "mypy>=1.8.0",
+    "isort>=5.13.2",
+]
+monitoring = [
+    "prometheus-client>=0.15.0",
+    "grafana-api>=1.0.3",
+]
+web = [
+    "streamlit>=1.28.0",
+    "plotly>=5.15.0",
+    "dash>=2.14.0",
+]
+
+[project.scripts]
+trading-bot = "main:run_bot"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/alpaca-trading-bot"
+Repository = "https://github.com/yourusername/alpaca-trading-bot"
+Issues = "https://github.com/yourusername/alpaca-trading-bot/issues"
+Documentation = "https://github.com/yourusername/alpaca-trading-bot/blob/main/README.md"
+
+# Black configuration
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | migrations
+)/
+'''
+
+# isort configuration
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+src_paths = [".", "tests"]
+
+# mypy configuration
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "alpaca_trade_api.*",
+    "ta.*",
+    "groq.*",
+    "numba.*",
+]
+ignore_missing_imports = true
+
+# pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings",
+    "--color=yes",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+minversion = "6.0"
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "venv/*",
+    "build/*",
+    "dist/*",
+    "*.egg-info/*",
+    "migrations/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+ignore_errors = true
+show_missing = true
+precision = 2
+
+[tool.coverage.html]
+directory = "htmlcov"

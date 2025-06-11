@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  trading-bot:
+    build: .
+    container_name: alpaca-trading-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:///data/trading_bot.db
+      - LOG_FILE=logs/trading_bot.log
+      - REDIS_URL=redis://redis:6379
+      - REDIS_ENABLED=true
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+    networks:
+      - trading-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: trading-bot-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - trading-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Optional: Web dashboard (for future implementation)
+  # dashboard:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.dashboard
+  #   container_name: trading-dashboard
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - DATABASE_URL=sqlite:///data/trading_bot.db
+  #   volumes:
+  #     - ./data:/app/data
+  #   depends_on:
+  #     - trading-bot
+  #   networks:
+  #     - trading-network
+
+volumes:
+  redis-data:
+    driver: local
+
+networks:
+  trading-network:
+    driver: bridge
