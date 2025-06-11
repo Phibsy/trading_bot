@@ -75,6 +75,7 @@ class TradingBot:
         try:
             from strategies.rsi_strategy import RSIStrategy
             from strategies.ml_strategy import MLStrategy
+            from strategies.wheel_strategy import WheelStrategy
             
             # RSI Strategy
             rsi_strategy = RSIStrategy({
@@ -91,6 +92,13 @@ class TradingBot:
                     'ai_weight': 0.4
                 })
                 self.strategies.append(ml_strategy)
+            
+            # Wheel Strategy - Conservative income strategy
+            wheel_strategy = WheelStrategy({
+                'min_confidence': self.config.trading.min_confidence,
+                'etf_whitelist': self.config.trading.symbols  # Use configured symbols
+            })
+            self.strategies.append(wheel_strategy)
             
             self.logger.info(f"Initialized {len(self.strategies)} strategies")
             
@@ -235,6 +243,29 @@ class TradingBot:
             valid_signals.sort(key=lambda s: getattr(s, 'confidence', 0), reverse=True)
             
             for signal in valid_signals:
+                # Check if it's an options signal (from Wheel Strategy)
+                metadata = getattr(signal, 'metadata', {})
+                is_options_signal = 'option_type' in metadata
+                
+                if is_options_signal:
+                    # Log options signals but don't execute (requires options permissions)
+                    self.logger.info(
+                        f"Options Signal: {metadata.get('wheel_stage')} for {signal.symbol} - "
+                        f"{metadata.get('option_action')} {metadata.get('option_type')} "
+                        f"at strike ${metadata.get('strike', 0):.2f}"
+                    )
+                    # Save to database for tracking
+                    await self.database.save_signal({
+                        'symbol': signal.symbol,
+                        'strategy': 'Wheel Strategy',
+                        'signal_type': f"{metadata.get('option_action')}_{metadata.get('option_type')}",
+                        'confidence': signal.confidence,
+                        'price': signal.price,
+                        'metadata': metadata
+                    })
+                    continue  # Skip actual execution for options
+                
+                # Regular stock signal processing
                 # Check risk management
                 approved, reason, risk_metrics = await self.risk_manager.evaluate_signal(
                     signal, current_positions, account_info
@@ -367,6 +398,7 @@ class TradingBot:
             
             print(f"Analysis Cycles: {self.analysis_count}")
             print(f"Active Strategies: {len([s for s in self.strategies if s.enabled])}")
+            print(f"  - " + ", ".join([s.name for s in self.strategies if s.enabled]))
             print(f"Account Equity: ${account_info.get('equity', 0):,.2f}")
             print(f"Active Positions: {portfolio_metrics.get('positions', {}).get('count', 0)}")
             print(f"Pending Orders: {len(self.order_manager.get_pending_orders())}")
@@ -397,14 +429,16 @@ class TradingBot:
             self.running = False
             
             # Cancel all pending orders
-            canceled_orders = await self.order_manager.cancel_all_orders()
-            if canceled_orders > 0:
-                self.logger.info(f"Canceled {canceled_orders} pending orders")
+            if self.order_manager:
+                canceled_orders = await self.order_manager.cancel_all_orders()
+                if canceled_orders > 0:
+                    self.logger.info(f"Canceled {canceled_orders} pending orders")
             
             # Final status report
-            account_info = await self.market_data.get_account_info()
-            if account_info:
-                await self._print_status()
+            if self.market_data:
+                account_info = await self.market_data.get_account_info()
+                if account_info:
+                    await self._print_status()
             
             self.logger.info("Trading bot shutdown complete")
             
@@ -456,6 +490,6 @@ class TradingBot:
                 'enabled': s.enabled,
                 'parameters': s.parameters
             } for s in self.strategies],
-            'positions': self.portfolio.get_all_positions(),
-            'pending_orders': len(self.order_manager.get_pending_orders())
+            'positions': self.portfolio.get_all_positions() if self.portfolio else {},
+            'pending_orders': len(self.order_manager.get_pending_orders()) if self.order_manager else 0
         }

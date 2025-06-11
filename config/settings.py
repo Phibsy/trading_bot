@@ -17,14 +17,20 @@ class AlpacaConfig:
 class GroqConfig:
     """Groq AI configuration."""
     api_key: str = field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
-    model: str = "mixtral-8x7b-32768"
+    model: str = "llama-3.1-8b-instant"  # Updated to current model
     max_tokens: int = 1000
     temperature: float = 0.1
 
 @dataclass
 class TradingConfig:
     """Trading configuration."""
-    symbols: List[str] = field(default_factory=lambda: ["TQQQ", "SQQQ", "SPXL", "SPXS"])
+    # Europa-fokussierte ETFs für Extended Hours Trading
+    symbols: List[str] = field(default_factory=lambda: [
+        "EWG",  # iShares MSCI Germany ETF
+        "FEZ",  # SPDR EURO STOXX 50 ETF
+        "VGK",  # Vanguard FTSE Europe ETF
+        "EFA"   # iShares MSCI EAFE ETF
+    ])
     max_positions: int = field(default_factory=lambda: int(os.getenv("MAX_POSITIONS", "3")))
     position_size: float = field(default_factory=lambda: float(os.getenv("POSITION_SIZE", "0.1")))
     stop_loss: float = field(default_factory=lambda: float(os.getenv("STOP_LOSS", "0.02")))

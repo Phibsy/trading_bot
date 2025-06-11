@@ -58,11 +58,31 @@ def normalize_timestamp(timestamp: Union[str, datetime, pd.Timestamp]) -> dateti
         raise ValueError(f"Unsupported timestamp type: {type(timestamp)}")
 
 def is_market_hours() -> bool:
-    """Check if current time is during market hours (9:30 AM - 4:00 PM ET)."""
-    now = datetime.now(timezone.utc)
-    # Convert to ET (UTC-5 or UTC-4 depending on DST)
-    et_hour = (now.hour - 5) % 24  # Simplified, doesn't account for DST
-    return 9.5 <= et_hour < 16 and now.weekday() < 5
+    """Check if current time is during market hours including extended hours (4:00 AM - 8:00 PM ET)."""
+    from datetime import datetime
+    import pytz
+    
+    # Get current time in ET
+    et_tz = pytz.timezone('US/Eastern')
+    et_now = datetime.now(et_tz)
+    
+    # Check if weekday (Monday = 0, Sunday = 6)
+    if et_now.weekday() >= 5:  # Saturday or Sunday
+        return False
+    
+    # Get hour and minute in ET
+    current_hour = et_now.hour
+    current_minute = et_now.minute
+    current_time = current_hour + current_minute / 60.0
+    
+    # Extended hours: 4:00 AM - 8:00 PM ET
+    market_open = 4.0   # 4:00 AM
+    market_close = 20.0 # 8:00 PM
+    
+    # Debug logging
+    print(f"DEBUG: ET time: {et_now.strftime('%H:%M')} ET, Hour: {current_hour}, In range: {market_open <= current_time < market_close}")
+    
+    return market_open <= current_time < market_close
 
 def format_currency(amount: float) -> str:
     """Format currency with proper formatting."""

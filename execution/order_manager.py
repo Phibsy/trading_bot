@@ -61,7 +61,8 @@ class OrderManager:
                 quantity=quantity,
                 side=side.value,
                 order_type=order_type,
-                time_in_force="day"
+                time_in_force="day",
+                extended_hours=True  # Enable extended hours for European trading
             )
             
             if not order_result:
@@ -79,7 +80,8 @@ class OrderManager:
                         side=OrderSide.SELL.value,
                         order_type="stop",
                         stop_price=stop_loss_price,
-                        time_in_force="gtc"
+                        time_in_force="gtc",
+                        extended_hours=True
                     )
                     if stop_order:
                         bracket_orders.append(stop_order)
@@ -91,7 +93,8 @@ class OrderManager:
                         side=OrderSide.SELL.value,
                         order_type="limit",
                         limit_price=take_profit_price,
-                        time_in_force="gtc"
+                        time_in_force="gtc",
+                        extended_hours=True
                     )
                     if profit_order:
                         bracket_orders.append(profit_order)
@@ -116,7 +119,7 @@ class OrderManager:
             self.pending_orders[order_id] = order_info
             self.order_history.append(order_info)
             
-            self.logger.info(f"Order executed: {symbol} {side.value} {quantity} shares")
+            self.logger.info(f"Order executed: {symbol} {side.value} {quantity} shares (Extended Hours)")
             return order_info
             
         except Exception as e:
@@ -134,19 +137,40 @@ class OrderManager:
         order_type: str = "market",
         limit_price: Optional[float] = None,
         stop_price: Optional[float] = None,
-        time_in_force: str = "day"
+        time_in_force: str = "day",
+        extended_hours: bool = True  # Enable extended hours by default for European trading
     ) -> Optional[Dict[str, Any]]:
-        """Submit an order to Alpaca."""
+        """Submit an order to Alpaca with extended hours support."""
         try:
             order_params = {
                 'symbol': symbol,
                 'qty': quantity,
                 'side': side,
                 'type': order_type,
-                'time_in_force': time_in_force
+                'time_in_force': time_in_force,
+                'extended_hours': extended_hours  # Add extended hours parameter
             }
             
-            if limit_price:
+            # During extended hours, only limit orders are allowed
+            if extended_hours and order_type == "market":
+                # Get current quote to convert market order to limit order
+                loop = asyncio.get_event_loop()
+                quote = await loop.run_in_executor(
+                    None,
+                    lambda: self.api.get_latest_quote(symbol)
+                )
+                
+                # Use ask price for buy orders, bid price for sell orders
+                if side == "buy":
+                    limit_price = float(quote.ap) * 1.001  # Slightly above ask
+                else:
+                    limit_price = float(quote.bp) * 0.999  # Slightly below bid
+                
+                order_params['type'] = 'limit'
+                order_params['limit_price'] = limit_price
+                self.logger.info(f"Converting market order to limit order for extended hours: {limit_price}")
+            
+            if limit_price and order_type == "limit":
                 order_params['limit_price'] = limit_price
             
             if stop_price:
@@ -168,7 +192,8 @@ class OrderManager:
                 'status': order.status,
                 'submitted_at': order.submitted_at,
                 'limit_price': float(order.limit_price) if order.limit_price else None,
-                'stop_price': float(order.stop_price) if order.stop_price else None
+                'stop_price': float(order.stop_price) if order.stop_price else None,
+                'extended_hours': extended_hours
             }
             
         except Exception as e:
@@ -304,7 +329,8 @@ class OrderManager:
                 side=side.value,
                 order_type="stop",
                 stop_price=stop_price,
-                time_in_force="gtc"
+                time_in_force="gtc",
+                extended_hours=True
             )
             
         except Exception as e:
@@ -328,7 +354,8 @@ class OrderManager:
                 side=side.value,
                 order_type="limit",
                 limit_price=limit_price,
-                time_in_force="gtc"
+                time_in_force="gtc",
+                extended_hours=True
             )
             
         except Exception as e:
@@ -358,7 +385,8 @@ class OrderManager:
                 'success_rate_percent': success_rate,
                 'buy_orders': buy_orders,
                 'sell_orders': sell_orders,
-                'pending_orders': len(self.pending_orders)
+                'pending_orders': len(self.pending_orders),
+                'extended_hours_enabled': True
             }
             
         except Exception as e:
